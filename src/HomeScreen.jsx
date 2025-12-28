@@ -234,17 +234,10 @@ const HomeScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.logo}>📱 Dev Social</Text>
+            <Text style={styles.logo}> Dev Social</Text>
           </View>
           
           <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.headerIcon} 
-              onPress={() => navigation.navigate('Search')}
-            >
-              <Text style={styles.icon}>🔍</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity 
               style={styles.headerIcon} 
               onPress={() => navigation.navigate('Notifications')}
@@ -395,7 +388,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0EA5E9',
+    color: '#c81bd4ff',
   },
   icon: {
     fontSize: 22,
