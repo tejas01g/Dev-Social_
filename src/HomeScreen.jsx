@@ -3,32 +3,24 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Image,
   FlatList,
   Modal,
   Dimensions,
   TouchableWithoutFeedback,
+  RefreshControl,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-
-  
-  // Sample user data
-  const user = {
-    name: "Tejasvi",
-    username: "@tejasvi",
-    bio: "React Native Developer | Building Dev Social",
-    followers: 245,
-    following: 156,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
-  };
+  const [refreshing, setRefreshing] = useState(false);
 
   // Sample posts with images
   const posts = [
@@ -41,6 +33,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 42,
       comments: 8,
       shares: 3,
+      isLiked: false,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
       image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&h=600&fit=crop',
       hasImage: true,
@@ -54,6 +47,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 128,
       comments: 24,
       shares: 12,
+      isLiked: true,
       avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop',
       image: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=600&fit=crop',
       hasImage: true,
@@ -67,6 +61,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 89,
       comments: 15,
       shares: 5,
+      isLiked: false,
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop',
       hasImage: false,
     },
@@ -79,6 +74,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 156,
       comments: 32,
       shares: 18,
+      isLiked: false,
       avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop',
       image: 'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=800&h=600&fit=crop',
       hasImage: true,
@@ -92,6 +88,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 203,
       comments: 45,
       shares: 22,
+      isLiked: true,
       avatar: 'https://images.unsplash.com/photo-1507591064344-4c6ce005-128?w=200&h=200&fit=crop',
       image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
       hasImage: true,
@@ -105,6 +102,7 @@ const HomeScreen = ({ navigation }) => {
       likes: 98,
       comments: 18,
       shares: 7,
+      isLiked: false,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
       hasImage: false,
     },
@@ -114,6 +112,14 @@ const HomeScreen = ({ navigation }) => {
   const openFullScreenImage = (imageUrl) => {
     setSelectedImage(imageUrl);
     setModalVisible(true);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Simulate API call
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
   };
 
   // Render each post item
@@ -168,22 +174,48 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Post Actions */}
       <View style={styles.postActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionIcon}>❤️</Text>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            // Handle like functionality
+            alert('Liked!');
+          }}
+        >
+          <Text style={[styles.actionIcon, item.isLiked && styles.likedIcon]}>
+            {item.isLiked ? '❤️' : '🤍'}
+          </Text>
           <Text style={styles.actionText}>Like</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            // Handle comment functionality
+            alert('Comments!');
+          }}
+        >
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionText}>Comment</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            // Handle share functionality
+            alert('Shared!');
+          }}
+        >
           <Text style={styles.actionIcon}>🔗</Text>
           <Text style={styles.actionText}>Share</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            // Handle save functionality
+            alert('Saved!');
+          }}
+        >
           <Text style={styles.actionIcon}>📌</Text>
           <Text style={styles.actionText}>Save</Text>
         </TouchableOpacity>
@@ -193,6 +225,11 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="#fff"
+        translucent={false}
+      />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -201,11 +238,17 @@ const HomeScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Search')}>
+            <TouchableOpacity 
+              style={styles.headerIcon} 
+              onPress={() => navigation.navigate('Search')}
+            >
               <Text style={styles.icon}>🔍</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.headerIcon} onPress={() => alert("Notifications")}>
+            <TouchableOpacity 
+              style={styles.headerIcon} 
+              onPress={() => navigation.navigate('Notifications')}
+            >
               <View style={styles.notificationBadge}>
                 <Text style={styles.badgeText}>3</Text>
               </View>
@@ -214,89 +257,54 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <ScrollView 
-          style={styles.scrollView}
+        <FlatList
+          data={posts}
+          renderItem={renderPostItem}
+          keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
-        >
-          {/* User Profile Card */}
-          <View style={styles.profileCard}>
-            <View style={styles.profileHeader}>
-              <Image 
-                source={{ uri: user.avatar }} 
-                style={styles.profileAvatar}
-              />
-              
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{user.name}</Text>
-                <Text style={styles.profileUsername}>{user.username}</Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={() => navigation.navigate('Profile')}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#0EA5E9']}
+              tintColor="#0EA5E9"
+            />
+          }
+          ListHeaderComponent={
+            <>
+              {/* Create Post Button */}
+              <TouchableOpacity
+                style={styles.createPostButton}
+                onPress={() => navigation.navigate('Add')}
               >
-                <Text style={styles.editButtonText}>Edit</Text>
+                <View style={styles.createPostAvatar}>
+                  <Image 
+                    source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop' }} 
+                    style={styles.createPostAvatarImage}
+                  />
+                </View>
+                <Text style={styles.createPostText}>What's on your mind?</Text>
+                <View style={styles.createPostIcon}>
+                  <Text style={styles.photoIcon}>📷</Text>
+                </View>
               </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.profileBio}>{user.bio}</Text>
-            
-            <View style={styles.profileStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user.followers}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              
-              <View style={styles.statDivider} />
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user.following}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
-              
-              <View style={styles.statDivider} />
-              
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>6</Text>
-                <Text style={styles.statLabel}>Posts</Text>
-              </View>
-            </View>
-          </View>
 
-          {/* Create Post Button */}
-          <TouchableOpacity
-            style={styles.createPostButton}
-            onPress={() => navigation.navigate("AddPost")}
-          >
-            <View style={styles.createPostAvatar}>
-              <Image 
-                source={{ uri: user.avatar }} 
-                style={styles.createPostAvatarImage}
-              />
+              {/* Feed Header */}
+              <View style={styles.feedHeader}>
+                <Text style={styles.feedTitle}>Latest Posts</Text>
+                <TouchableOpacity>
+                  <Text style={styles.feedFilter}>Latest</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          }
+          ListFooterComponent={
+            <View style={styles.listFooter}>
+              <Text style={styles.footerText}>You're all caught up! 🎉</Text>
             </View>
-            <Text style={styles.createPostText}>What's on your mind, {user.name}?</Text>
-            <View style={styles.createPostIcon}>
-              <Text style={styles.photoIcon}>📷</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Posts Feed */}
-          <View style={styles.feedHeader}>
-            <Text style={styles.feedTitle}>Latest Posts</Text>
-            <TouchableOpacity>
-              <Text style={styles.feedFilter}>Latest</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Posts List */}
-          <FlatList
-            data={posts}
-            renderItem={renderPostItem}
-            keyExtractor={item => item.id}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={styles.postSeparator} />}
-          />
-        </ScrollView>
+          }
+        />
       </View>
 
       {/* Full Screen Image Modal */}
@@ -306,35 +314,37 @@ const HomeScreen = ({ navigation }) => {
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <Image 
-                  source={{ uri: selectedImage }} 
-                  style={styles.fullScreenImage}
-                  resizeMode="contain"
-                />
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-          
-          {/* Close Button */}
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={() => setModalVisible(false)}
-          >
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-          
-          {/* Save Button */}
-          <TouchableOpacity 
-            style={styles.saveButton}
-            onPress={() => alert('Image saved!')}
-          >
-            <Text style={styles.saveButtonText}>⬇️ Save</Text>
-          </TouchableOpacity>
-        </View>
+        <SafeAreaView style={styles.modalSafeArea}>
+          <View style={styles.modalContainer}>
+            <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback>
+                  <Image 
+                    source={{ uri: selectedImage }} 
+                    style={styles.fullScreenImage}
+                    resizeMode="contain"
+                  />
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+            
+            {/* Close Button */}
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+            
+            {/* Save Button */}
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={() => alert('Image saved!')}
+            >
+              <Text style={styles.saveButtonText}>⬇️ Save</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -343,11 +353,15 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'black',
+  },
+  modalSafeArea: {
+    flex: 1,
+    backgroundColor: '#000',
   },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'black',
   },
   header: {
     flexDirection: 'row',
@@ -355,9 +369,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: 'black',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    ...Platform.select({
+      ios: {
+        paddingTop: 0, // SafeAreaView already handles top padding on iOS
+      },
+      android: {
+        paddingTop: 8, // Extra padding for Android status bar
+      },
+    }),
   },
   headerLeft: {
     flex: 1,
@@ -391,104 +413,29 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   badgeText: {
-    color: '#fff',
+    color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  scrollView: {
-    flex: 1,
-  },
-  // Profile Card Styles
-  profileCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  profileAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 16,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  profileUsername: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  editButton: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  editButtonText: {
-    color: '#0EA5E9',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  profileBio: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  profileStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#E2E8F0',
+  listContent: {
+    paddingBottom: 20,
   },
   // Create Post Button
   createPostButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffffff',
     marginHorizontal: 16,
     marginTop: 16,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#c81bd4ff',
+    shadowColor: '#c81bd4ff',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   createPostAvatar: {
     width: 40,
@@ -520,11 +467,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 12,
+    paddingHorizontal: 4,
   },
   feedTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: 'white',
   },
   feedFilter: {
     fontSize: 14,
@@ -533,19 +481,18 @@ const styles = StyleSheet.create({
   },
   // Post Card Styles
   postCard: {
-    backgroundColor: '#fff',
+    borderWidth:1,
+    borderColor:'#c81bd4ff',
+    backgroundColor: '#1c1c1cff',
     marginHorizontal: 16,
+    marginBottom: 12,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: '#c81bd4ff',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-  },
-  postSeparator: {
-    height: 12,
   },
   postHeader: {
     flexDirection: 'row',
@@ -564,7 +511,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
+    color: 'white',
     marginBottom: 2,
   },
   usernameTime: {
@@ -573,27 +520,27 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#d8d8d8ff',
   },
   timeDot: {
     fontSize: 13,
-    color: '#CBD5E1',
+    color: '#d8d8d8ff',
     marginHorizontal: 6,
   },
   time: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#d8d8d8ff',
   },
   moreButton: {
     padding: 8,
   },
   moreIcon: {
     fontSize: 20,
-    color: '#64748B',
+    color: '#d8d8d8ff',
   },
   postContent: {
     fontSize: 15,
-    color: '#334155',
+    color: '#d8d8d8ff',
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -634,7 +581,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#d8d8d8ff',
     marginRight: 16,
   },
   postActions: {
@@ -652,10 +599,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginRight: 6,
   },
+  likedIcon: {
+    color: '#EF4444',
+  },
   actionText: {
     fontSize: 14,
     color: '#475569',
     fontWeight: '500',
+  },
+  listFooter: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#d8d8d8ff',
+    textAlign: 'center',
   },
   // Full Screen Image Modal Styles
   modalContainer: {
@@ -673,7 +633,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 40,
+    top: Platform.OS === 'ios' ? 50 : 40,
     right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     width: 40,
@@ -689,7 +649,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     position: 'absolute',
-    bottom: 40,
+    bottom: Platform.OS === 'ios' ? 50 : 40,
     right: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     paddingHorizontal: 16,
