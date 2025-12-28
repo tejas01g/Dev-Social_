@@ -19,6 +19,7 @@ const HomeScreen = ({ navigation }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  
   // Sample user data
   const user = {
     name: "Tejasvi",

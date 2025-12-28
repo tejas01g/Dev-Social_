@@ -43,7 +43,9 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
+
     <SafeAreaView style={styles.safeArea}>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -54,6 +56,10 @@ const LoginScreen = ({ navigation }) => {
         >
           <View style={styles.container}>
             {/* Header/Title could be added here if needed */}
+            <Image
+              style={styles.logo}
+              source={require('./assets/DSLOGOnew.png')}
+            />
 
             {/* Email Input */}
             <View style={styles.inputContainer}>
@@ -136,7 +142,14 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'black',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginLeft: 130,
+    marginBottom: 8,
+    resizeMode: "contain",
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -169,12 +182,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   loginButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#c81bd4ff',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 24,
+    width:100,
+    justifyContent:'center',
+    alignItems:'center',
+    margin:130
+
   },
   loginButtonText: {
     color: '#fff',
@@ -192,7 +210,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#c81bd4ff',
     fontWeight: '600',
   },
   dividerContainer: {
@@ -203,7 +221,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#eee',
+    // backgroundColor: '#eee',
   },
   dividerText: {
     marginHorizontal: 16,
@@ -212,7 +230,7 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#c81bd4ff',
     borderRadius: 8,
     paddingVertical: 14,
     marginBottom: 12,
