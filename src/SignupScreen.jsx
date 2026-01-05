@@ -13,6 +13,8 @@ import {
   TouchableWithoutFeedback,
   Button,
 } from 'react-native';
+import auth from "@react-native-firebase/auth";
+import firestore from "@react-native-firebase/firestore";
 
 const SignupScreen = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -22,10 +24,45 @@ const SignupScreen = ({ navigation }) => {
   const [showDateModal, setShowDateModal] = useState(false);
   const [tempDob, setTempDob] = useState('');
 
-  const handleSignup = () => {
-    console.log('Signup attempted with:', { name, email, dob, password });
-    // Add your signup logic here
-  };
+const handleSignup = async () => {
+  if (!name || !email || !dob || !password) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  try {
+    // 1️⃣ Create Auth User
+    const userCredential =
+      await auth().createUserWithEmailAndPassword(email, password);
+
+    const user = userCredential.user;
+
+    // 2️⃣ Create Firestore User Document
+    await firestore().collection("users").doc(user.uid).set({
+      uid: user.uid,
+      name: name,
+      email: email,
+      dob: dob,
+      username: email.split("@")[0],
+      bio: "",
+      techStack: [],
+      hobbies: [],
+      photoURL: "",
+      followersCount: 0,
+      followingCount: 0,
+      postsCount: 0,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    // 3️⃣ Navigate forward
+    navigation.replace("Login");
+
+  } catch (error) {
+    console.log(error);
+    alert(error.message);
+  }
+};
+
 
   const handleLogin = () => {
     navigation.navigate('Login');

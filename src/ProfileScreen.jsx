@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import auth from "@react-native-firebase/auth";
 
 
 const { width } = Dimensions.get("window");
@@ -84,6 +85,16 @@ const ProfileScreen = () => {
   const [selectedThoughtCategory, setSelectedThoughtCategory] = useState("💭 All Thoughts");
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("thoughts"); // 'thoughts' or 'posts'
+
+  const handleLogout = async () => {
+  try {
+    await auth().signOut();
+    navigation.replace("Login");
+  } catch (error) {
+    console.log(error);
+    // alert("Something went wrong while logging out");
+  }
+};
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -170,6 +181,11 @@ const ProfileScreen = () => {
 
         {/* Header with Profile Info */}
         <View style={styles.header}>
+
+           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+    <Text style={styles.logoutText}>Logout</Text>
+  </TouchableOpacity>
+
           <View style={styles.avatarContainer}>
             <Image
               source={{ uri: "https://i.pravatar.cc/150?img=12" }}
@@ -742,27 +758,25 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 80,
   },
-  // fab: {
-  //   position: "absolute",
-  //   bottom: 30,
-  //   right: 20,
-  //   backgroundColor: "#c81bd4ff",
-  //   width: 56,
-  //   height: 56,
-  //   borderRadius: 28,
-  //   justifyContent: "center",
-  //   alignItems: "center",
-  //   elevation: 8,
-  //   shadowColor: "#000",
-  //   shadowOffset: { width: 0, height: 4 },
-  //   shadowOpacity: 0.3,
-  //   shadowRadius: 4,
-  // },
-  // fabIcon: {
-  //   fontSize: 28,
-  //   color: "#fff",
-  //   fontWeight: "300",
-  // },
+
+  logoutBtn: {
+  position: "absolute",
+  top: 10,
+  right: 16,
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 6,
+  backgroundColor: "#1F2937",
+  borderWidth: 1,
+  borderColor: "#c81bd4ff",
+},
+
+logoutText: {
+  color: "#c81bd4ff",
+  fontSize: 13,
+  fontWeight: "600",
+},
+
 });
 
 export default ProfileScreen;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "81508981830",
+    "project_id": "devsocial-team",
+    "storage_bucket": "devsocial-team.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:81508981830:android:372e51167b3c57df76be47",
+        "android_client_info": {
+          "package_name": "com.socialproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBg4_hlNqdhBUcnLpc3tHw3gCYUtdFWJA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
