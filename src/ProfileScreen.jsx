@@ -14,12 +14,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import auth from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
 import { useEffect } from "react";
+import { Modal, TextInput } from "react-native";
 
 const { width } = Dimensions.get("window");
 
-// Sample data
-const techStack = ["React Native", "JavaScript", "Node.js", "Firebase", "TypeScript", "MongoDB"];
-const hobbies = ["🏋️ Gym", "🎮 Gaming", "🎧 Music", "📚 Reading", "✈️ Travel", "☕ Coffee"];
 const thoughtCategories = ["💭 All Thoughts", "🌟 Motivation", "💡 Ideas", "📱 Tech", "🎯 Goals"];
 
 // Thoughts Data
@@ -88,22 +86,70 @@ const ProfileScreen = () => {
   const [activeTab, setActiveTab] = useState("thoughts"); // 'thoughts' or 'posts'
   const [userData, setUserData] = useState(null);
   const user = auth().currentUser;
+  const [editVisible, setEditVisible] = useState(false);
+const [name, setName] = useState("");
+const [username, setUsername] = useState("");
+const [bio, setBio] = useState("");
+const [editTechStack, setEditTechStack] = useState([]);
+const [editHobbies, setEditHobbies] = useState([]);
+const techStack = userData?.techStack || [];
+const hobbies = userData?.hobbies || [];
+const [myPosts, setMyPosts] = useState([]);
+const [postsLoading, setPostsLoading] = useState(true);
 
 
-  useEffect(() => {
-    if (!user) return;
+useEffect(() => {
+  if (!user) return;
 
-    const unsubscribe = firestore()
-      .collection("users")
-      .doc(user.uid)
-      .onSnapshot(doc => {
-        if (doc.exists) {
-          setUserData(doc.data());
-        }
-      });
+  // USER DATA
+  const unsubscribeUser = firestore()
+    .collection("users")
+    .doc(user.uid)
+    .onSnapshot(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        setUserData(data);
+        setName(data.name || "");
+        setUsername(data.username || "");
+        setBio(data.bio || "");
+      }
+    });
 
-    return unsubscribe;
-  }, []);
+  // USER POSTS (REAL-TIME)
+const unsubscribePosts = firestore()
+  .collection("posts")
+  .where("userId", "==", user.uid)
+  .orderBy("createdAt", "desc")
+  .onSnapshot(
+    snapshot => {
+      if (!snapshot) {
+        setMyPosts([]);
+        setPostsLoading(false);
+        return;
+      }
+
+      const posts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setMyPosts(posts);
+      setPostsLoading(false);
+    },
+    error => {
+      console.log("Posts snapshot error:", error);
+      setPostsLoading(false);
+    }
+  );
+
+
+  // CLEANUP
+  return () => {
+    unsubscribeUser();
+    unsubscribePosts();
+  };
+}, []);
+
 
 
   const handleLogout = async () => {
@@ -147,36 +193,53 @@ const ProfileScreen = () => {
     </View>
   );
 
-  const renderPostItem = ({ item }) => (
-    <View style={styles.postCard}>
-      <View style={styles.postHeader}>
-        <Text style={styles.postTime}>{item.time}</Text>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Text style={styles.moreIcon}>⋯</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.postText}>{item.text}</Text>
+ const renderPostItem = ({ item }) => (
+  <View style={styles.postCard}>
+    {/* Header */}
+    <View style={styles.postHeader}>
+      <Text style={styles.postTime}>
+        {item.createdAt?.toDate
+          ? new Date(item.createdAt.toDate()).toLocaleDateString()
+          : "Just now"}
+      </Text>
+
+      <TouchableOpacity style={styles.postMoreButton}>
+        <Text style={styles.moreIcon}>⋯</Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Text */}
+    <Text style={styles.postText}>{item.text}</Text>
+
+    {/* Image (ONLY if exists) */}
+    {item.image ? (
       <Image
         source={{ uri: item.image }}
         style={styles.postImage}
         resizeMode="cover"
       />
-      <View style={styles.postStats}>
-        <TouchableOpacity style={styles.statButton}>
-          <Text style={styles.statIcon}>❤️</Text>
-          <Text style={styles.statCount}>{item.likes}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.statButton}>
-          <Text style={styles.statIcon}>💬</Text>
-          <Text style={styles.statCount}>{item.comments}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.statButton}>
-          <Text style={styles.statIcon}>🔗</Text>
-          <Text style={styles.statCount}>{item.shares}</Text>
-        </TouchableOpacity>
-      </View>
+    ) : null}
+
+    {/* Stats */}
+    <View style={styles.postStats}>
+      <TouchableOpacity style={styles.statButton}>
+        <Text style={styles.statIcon}>❤️</Text>
+        <Text style={styles.statCount}>{item.likes || 0}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.statButton}>
+        <Text style={styles.statIcon}>💬</Text>
+        <Text style={styles.statCount}>{item.comments || 0}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.statButton}>
+        <Text style={styles.statIcon}>🔗</Text>
+        <Text style={styles.statCount}>Share</Text>
+      </TouchableOpacity>
     </View>
-  );
+  </View>
+);
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -215,8 +278,7 @@ const ProfileScreen = () => {
           <Text style={styles.username}> @{userData?.username || "user"}</Text>
 
           <Text style={styles.bio}>
-            React Native Developer | Learning by building 🚀
-            Passionate about creating beautiful mobile experiences.
+            {userData?.bio|| "Add your bio"}
           </Text>
 
           {/* Stats Row */}
@@ -241,14 +303,18 @@ const ProfileScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.editBtn, isFollowing && styles.followingBtn]}
-              onPress={() => setIsFollowing(!isFollowing)}
-            >
-              <Text style={[styles.editText, isFollowing && styles.followingText]}>
-                {isFollowing ? "Following ✓" : "Follow"}
-              </Text>
-            </TouchableOpacity>
+      <TouchableOpacity
+  style={styles.editBtn}
+  onPress={() => {
+    setEditTechStack(userData?.techStack || []);
+    setEditHobbies(userData?.hobbies || []);
+    setEditVisible(true);
+  }}
+>
+  <Text style={styles.editText}>Edit Profile</Text>
+</TouchableOpacity>
+
+
 
             <TouchableOpacity style={styles.messageBtn}>
               <Text style={styles.messageText}>Message</Text>
@@ -319,7 +385,7 @@ const ProfileScreen = () => {
             onPress={() => setActiveTab("posts")}
           >
             <Text style={[styles.tabText, activeTab === "posts" && styles.activeTabText]}>
-              📸 Posts ({dummyPosts.length})
+              📸 Posts ({myPosts.length})
             </Text>
             {activeTab === "posts" && <View style={styles.activeTabIndicator} />}
           </TouchableOpacity>
@@ -379,24 +445,39 @@ const ProfileScreen = () => {
         )}
 
         {/* Posts Section - Only shown when activeTab is 'posts' */}
-        {activeTab === "posts" && (
-          <View style={styles.contentSection}>
-            <View style={styles.contentHeader}>
-              <Text style={styles.sectionTitle}>My Posts</Text>
-              <Text style={styles.contentCount}>{dummyPosts.length} posts with images</Text>
-            </View>
+     {activeTab === "posts" && (
+  <View style={styles.contentSection}>
+    <View style={styles.contentHeader}>
+      <Text style={styles.sectionTitle}>My Posts</Text>
+      <Text style={styles.contentCount}>
+        {myPosts.length} posts
+      </Text>
+    </View>
 
-            {/* Posts Grid/List */}
-            <FlatList
-              data={dummyPosts}
-              renderItem={renderPostItem}
-              keyExtractor={item => item.id.toString()}
-              scrollEnabled={false}
-              contentContainerStyle={styles.contentList}
-              ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-            />
-          </View>
-        )}
+    {postsLoading ? (
+      <Text style={{ color: "#9CA3AF", textAlign: "center" }}>
+        Loading posts...
+      </Text>
+    ) : myPosts.length === 0 ? (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateIcon}>📸</Text>
+        <Text style={styles.emptyStateText}>
+          You haven’t posted anything yet
+        </Text>
+      </View>
+    ) : (
+      <FlatList
+        data={myPosts}
+        renderItem={renderPostItem}
+        keyExtractor={item => item.id}
+        scrollEnabled={false}
+        contentContainerStyle={styles.contentList}
+        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+      />
+    )}
+  </View>
+)}
+
 
         {/* Bottom Spacer */}
         <View style={styles.bottomSpacer} />
@@ -406,6 +487,130 @@ const ProfileScreen = () => {
       <TouchableOpacity style={styles.fab}>
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+
+ <Modal visible={editVisible} animationType="slide" transparent>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalBox}>
+
+      <Text style={styles.modalTitle}>Edit Profile</Text>
+
+      <TextInput
+        placeholder="Name"
+        placeholderTextColor="#9CA3AF"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+      />
+
+      <TextInput
+        placeholder="Username"
+        placeholderTextColor="#9CA3AF"
+        value={username}
+        onChangeText={setUsername}
+        style={styles.input}
+      />
+
+      <TextInput
+        placeholder="Bio"
+        placeholderTextColor="#9CA3AF"
+        value={bio}
+        onChangeText={setBio}
+        style={[styles.input, { height: 80 }]}
+        multiline
+      />
+
+      {/* Tech Stack */}
+      <Text style={styles.modalSubTitle}>Tech Stack</Text>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {editTechStack.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.editChip}
+            onPress={() =>
+              setEditTechStack(editTechStack.filter((_, i) => i !== index))
+            }
+          >
+            <Text style={styles.editChipText}>{item} ✕</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TextInput
+        placeholder="Add tech & press enter"
+        placeholderTextColor="#9CA3AF"
+        style={styles.input}
+        onSubmitEditing={(e) => {
+          const value = e.nativeEvent.text.trim();
+          if (value) {
+            setEditTechStack([...editTechStack, value]);
+          }
+        }}
+      />
+
+      {/* Hobbies */}
+      <Text style={styles.modalSubTitle}>Hobbies</Text>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {editHobbies.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.editChip}
+            onPress={() =>
+              setEditHobbies(editHobbies.filter((_, i) => i !== index))
+            }
+          >
+            <Text style={styles.editChipText}>{item} ✕</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TextInput
+        placeholder="Add hobby & press enter"
+        placeholderTextColor="#9CA3AF"
+        style={styles.input}
+        onSubmitEditing={(e) => {
+          const value = e.nativeEvent.text.trim();
+          if (value) {
+            setEditHobbies([...editHobbies, value]);
+          }
+        }}
+      />
+
+      {/* Buttons */}
+      <View style={{ flexDirection: "row", marginTop: 16 }}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={() => setEditVisible(false)}
+        >
+          <Text style={{ color: "#9CA3AF" }}>Cancel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={async () => {
+            await firestore()
+              .collection("users")
+              .doc(user.uid)
+              .update({
+                name,
+                username,
+                bio,
+                techStack: editTechStack,
+                hobbies: editHobbies,
+              });
+            setEditVisible(false);
+          }}
+        >
+          <Text style={{ color: "#fff" }}>Save</Text>
+        </TouchableOpacity>
+      </View>
+
+    </View>
+  </View>
+</Modal>
+
+
     </SafeAreaView>
   );
 };
@@ -421,7 +626,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingHorizontal: 20, 
   },
   avatarContainer: {
     position: "relative",
@@ -791,6 +996,68 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.6)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+modalBox: {
+  width: "90%",
+  backgroundColor: "#131927",
+  borderRadius: 12,
+  padding: 20,
+},
+modalTitle: {
+  color: "#E5E7EB",
+  fontSize: 18,
+  fontWeight: "700",
+  marginBottom: 16,
+},
+input: {
+  borderWidth: 1,
+  borderColor: "#1F2937",
+  borderRadius: 8,
+  padding: 12,
+  color: "#fff",
+  marginBottom: 12,
+},
+cancelBtn: {
+  flex: 1,
+  padding: 12,
+  alignItems: "center",
+},
+saveBtn: {
+  flex: 1,
+  padding: 12,
+  alignItems: "center",
+  backgroundColor: "#c81bd4ff",
+  borderRadius: 8,
+},
+
+modalSubTitle: {
+  color: "#9CA3AF",
+  marginVertical: 8,
+  fontSize: 14,
+},
+
+editChip: {
+  backgroundColor: "#1F2937",
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 16,
+  marginRight: 8,
+  marginBottom: 8,
+},
+
+editChipText: {
+  color: "#E5E7EB",
+
+  fontSize: 13,
+},
+
+
 
 });
 

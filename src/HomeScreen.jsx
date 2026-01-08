@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,335 +13,197 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+
+const handleLike = async post => {
+  const userId = auth().currentUser.uid;
+  const postRef = firestore().collection('posts').doc(post.id);
+
+  const alreadyLiked = post.likedBy?.includes(userId);
+
+  await postRef.update({
+    likes: firestore.FieldValue.increment(alreadyLiked ? -1 : 1),
+    likedBy: alreadyLiked
+      ? firestore.FieldValue.arrayRemove(userId)
+      : firestore.FieldValue.arrayUnion(userId),
+  });
+};
+
 
 const { width, height } = Dimensions.get('window');
 
+
 const HomeScreen = ({ navigation }) => {
+  const DEFAULT_AVATAR =
+  'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+
+  
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Sample posts with images
-  const posts = [
-    {
-      id: '1',
-      username: '@tejasvi',
-      name: 'Tejasvi',
-      time: '2h ago',
-      content: '🚀 Just finished building this beautiful UI with React Native! The performance is incredible.',
-      likes: 42,
-      comments: 8,
-      shares: 3,
-      isLiked: false,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
-      image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&h=600&fit=crop',
-      hasImage: true,
-    },
-    {
-      id: '2',
-      username: '@react_dev',
-      name: 'Sarah Chen',
-      time: '4h ago',
-      content: 'My current coding setup. Clean desk, clean code! What does your workspace look like?',
-      likes: 128,
-      comments: 24,
-      shares: 12,
-      isLiked: true,
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop',
-      image: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=600&fit=crop',
-      hasImage: true,
-    },
-    {
-      id: '3',
-      username: '@native_guru',
-      name: 'Alex Johnson',
-      time: '1d ago',
-      content: 'Working on a beautiful onboarding flow for our new app. React Native animations are getting better every day!',
-      likes: 89,
-      comments: 15,
-      shares: 5,
-      isLiked: false,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop',
-      hasImage: false,
-    },
-    {
-      id: '4',
-      username: '@ui_ux_pro',
-      name: 'Maria Garcia',
-      time: '2d ago',
-      content: 'Just launched our new design system components! Check out these beautiful gradients.',
-      likes: 156,
-      comments: 32,
-      shares: 18,
-      isLiked: false,
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop',
-      image: 'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=800&h=600&fit=crop',
-      hasImage: true,
-    },
-    {
-      id: '5',
-      username: '@web_wizard',
-      name: 'David Kim',
-      time: '3d ago',
-      content: 'Beautiful sunset from my home office today. Sometimes you need to appreciate the view while debugging!',
-      likes: 203,
-      comments: 45,
-      shares: 22,
-      isLiked: true,
-      avatar: 'https://images.unsplash.com/photo-1507591064344-4c6ce005-128?w=200&h=200&fit=crop',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-      hasImage: true,
-    },
-    {
-      id: '6',
-      username: '@code_master',
-      name: 'Lisa Wang',
-      time: '4d ago',
-      content: 'Just finished this React Native tutorial series. Sharing my learning journey with all of you!',
-      likes: 98,
-      comments: 18,
-      shares: 7,
-      isLiked: false,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
-      hasImage: false,
-    },
-  ];
+  /* ================= REAL-TIME GLOBAL POSTS ================= */
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('posts')
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(snapshot => {
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setPosts(list);
+        setLoading(false);
+      });
 
-  // Function to open image in full screen
-  const openFullScreenImage = (imageUrl) => {
-    setSelectedImage(imageUrl);
-    setModalVisible(true);
-  };
+    return unsubscribe;
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    setTimeout(() => setRefreshing(false), 1000);
   };
 
-  // Render each post item
+  const openFullScreenImage = url => {
+    setSelectedImage(url);
+    setModalVisible(true);
+  };
+
+  /* ================= POST ITEM ================= */
   const renderPostItem = ({ item }) => (
     <View style={styles.postCard}>
-      {/* Post Header with User Info */}
-      <View style={styles.postHeader}>
-        <Image 
-          source={{ uri: item.avatar }} 
-          style={styles.avatarImage}
-        />
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <View style={styles.usernameTime}>
-            <Text style={styles.username}>{item.username}</Text>
-            <Text style={styles.timeDot}>•</Text>
-            <Text style={styles.time}>{item.time}</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.moreButton}>
-          <Text style={styles.moreIcon}>⋯</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Header */}
+<View style={styles.postHeader}>
+  <Image
+    source={{
+      uri:
+        item.userAvatar ||
+        'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+    }}
+    style={styles.avatarImage}
+  />
 
-      {/* Post Content */}
-      <Text style={styles.postContent}>{item.content}</Text>
+  <View style={styles.userInfo}>
+    <Text style={styles.userName}>
+      {item.name || 'Dev Social User'}
+    </Text>
 
-      {/* Post Image */}
-      {item.hasImage && (
-        <TouchableOpacity 
+    <Text style={styles.username}>
+      @{item.username || 'devsocial'}
+    </Text>
+
+    <Text style={styles.time}>
+      {item.createdAt?.toDate
+        ? new Date(item.createdAt.toDate()).toLocaleString()
+        : 'Just now'}
+    </Text>
+  </View>
+
+  <TouchableOpacity>
+    <Text style={styles.moreIcon}>⋯</Text>
+  </TouchableOpacity>
+</View>
+
+
+
+      {/* Text */}
+      <Text style={styles.postContent}>{item.text}</Text>
+
+      {/* Image (optional) */}
+      {item.image && (
+        <TouchableOpacity
           style={styles.postImageContainer}
-          activeOpacity={0.9}
           onPress={() => openFullScreenImage(item.image)}
         >
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.postImage}
-            resizeMode="cover"
-          />
-          <View style={styles.imageOverlay}>
-            <Text style={styles.viewFullText}>Tap to view full image</Text>
-          </View>
+          <Image source={{ uri: item.image }} style={styles.postImage} />
         </TouchableOpacity>
       )}
 
-      {/* Post Stats */}
-      <View style={styles.postStats}>
-        <Text style={styles.statText}>{item.likes} likes</Text>
-        <Text style={styles.statText}>{item.comments} comments</Text>
-        <Text style={styles.statText}>{item.shares} shares</Text>
-      </View>
+      {/* Stats */}
+    <View style={styles.postActions}>
+  {/* LIKE */}
+  <TouchableOpacity
+    style={styles.actionButton}
+    onPress={() => handleLike(item)}
+  >
+    <Text style={styles.actionIcon}>❤️</Text>
+    <Text style={styles.actionText}>{item.likes || 0}</Text>
+  </TouchableOpacity>
 
-      {/* Post Actions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            // Handle like functionality
-            alert('Liked!');
-          }}
-        >
-          <Text style={[styles.actionIcon, item.isLiked && styles.likedIcon]}>
-            {item.isLiked ? '❤️' : '🤍'}
-          </Text>
-          <Text style={styles.actionText}>Like</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            // Handle comment functionality
-            alert('Comments!');
-          }}
-        >
-          <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>Comment</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            // Handle share functionality
-            alert('Shared!');
-          }}
-        >
-          <Text style={styles.actionIcon}>🔗</Text>
-          <Text style={styles.actionText}>Share</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            // Handle save functionality
-            alert('Saved!');
-          }}
-        >
-          <Text style={styles.actionIcon}>📌</Text>
-          <Text style={styles.actionText}>Save</Text>
-        </TouchableOpacity>
-      </View>
+  {/* COMMENT */}
+  <TouchableOpacity style={styles.actionButton}>
+    <Text style={styles.actionIcon}>💬</Text>
+    <Text style={styles.actionText}>{item.comments || 0}</Text>
+  </TouchableOpacity>
+
+  {/* SHARE */}
+  <TouchableOpacity style={styles.actionButton}>
+    <Text style={styles.actionIcon}>🔗</Text>
+    <Text style={styles.actionText}>{item.shares || 0}</Text>
+  </TouchableOpacity>
+</View>
+
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#fff"
-        translucent={false}
-      />
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.logo}> Dev Social</Text>
-          </View>
-          
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.headerIcon} 
-              onPress={() => navigation.navigate('Notifications')}
-            >
-              <View style={styles.notificationBadge}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
-              <Text style={styles.icon}>🔔</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <StatusBar backgroundColor="black" barStyle="light-content" />
 
-        <FlatList
-          data={posts}
-          renderItem={renderPostItem}
-          keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#0EA5E9']}
-              tintColor="#0EA5E9"
-            />
-          }
-          ListHeaderComponent={
-            <>
-              {/* Create Post Button */}
-              <TouchableOpacity
-                style={styles.createPostButton}
-                onPress={() => navigation.navigate('Add')}
-              >
-                <View style={styles.createPostAvatar}>
-                  <Image 
-                    source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop' }} 
-                    style={styles.createPostAvatarImage}
-                  />
-                </View>
-                <Text style={styles.createPostText}>What's on your mind?</Text>
-                <View style={styles.createPostIcon}>
-                  <Text style={styles.photoIcon}>📷</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Feed Header */}
-              <View style={styles.feedHeader}>
-                <Text style={styles.feedTitle}>Latest Posts</Text>
-                <TouchableOpacity>
-                  <Text style={styles.feedFilter}>Latest</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          }
-          ListFooterComponent={
-            <View style={styles.listFooter}>
-              <Text style={styles.footerText}>You're all caught up! 🎉</Text>
-            </View>
-          }
-        />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.logo}>Dev Social</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+          <Text style={{ fontSize: 22 }}>🔔</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Full Screen Image Modal */}
-      <Modal
-        visible={modalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <SafeAreaView style={styles.modalSafeArea}>
-          <View style={styles.modalContainer}>
-            <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback>
-                  <Image 
-                    source={{ uri: selectedImage }} 
-                    style={styles.fullScreenImage}
-                    resizeMode="contain"
-                  />
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-            
-            {/* Close Button */}
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-            
-            {/* Save Button */}
-            <TouchableOpacity 
-              style={styles.saveButton}
-              onPress={() => alert('Image saved!')}
-            >
-              <Text style={styles.saveButtonText}>⬇️ Save</Text>
-            </TouchableOpacity>
+      <FlatList
+        data={posts}
+        keyExtractor={item => item.id}
+        renderItem={renderPostItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListHeaderComponent={
+          <TouchableOpacity
+            style={styles.createPostButton}
+            onPress={() => navigation.navigate('Add')}
+          >
+            <Text style={styles.createPostText}>What's on your mind?</Text>
+          </TouchableOpacity>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <Text style={styles.emptyText}>Loading feed...</Text>
+          ) : (
+            <Text style={styles.emptyText}>No posts yet 🚀</Text>
+          )
+        }
+      />
+      
+
+      {/* Full Image Modal */}
+      <Modal visible={modalVisible} transparent>
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
           </View>
-        </SafeAreaView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
 };
+
+// export default HomeScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -413,6 +275,27 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 20,
   },
+  postActions: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  marginTop: 8,
+},
+
+actionButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+actionIcon: {
+  fontSize: 18,
+  marginRight: 6,
+},
+
+actionText: {
+  fontSize: 13,
+  color: '#d8d8d8ff',
+},
+
   // Create Post Button
   createPostButton: {
     flexDirection: 'row',
@@ -476,7 +359,7 @@ const styles = StyleSheet.create({
   postCard: {
     borderWidth:1,
     borderColor:'#c81bd4ff',
-    backgroundColor: '#1c1c1cff',
+    backgroundColor: '#262525ff',
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
@@ -520,6 +403,12 @@ const styles = StyleSheet.create({
     color: '#d8d8d8ff',
     marginHorizontal: 6,
   },
+  timeText: {
+  fontSize: 12,
+  color: '#9CA3AF',
+  marginTop: 2,
+},
+
   time: {
     fontSize: 13,
     color: '#d8d8d8ff',

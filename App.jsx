@@ -6,6 +6,7 @@ import auth from "@react-native-firebase/auth";
 import LoginScreen from "./src/LoginScreen";
 import SignupScreen from "./src/SignupScreen";
 import BottomNavigation from "./src/BottomNavigation";
+import UserProfileScreen from "./src/UserProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -14,7 +15,6 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 🔥 Firebase Auth Listener
     const unsubscribe = auth().onAuthStateChanged(currentUser => {
       setUser(currentUser);
       setLoading(false);
@@ -23,18 +23,23 @@ const App = () => {
     return unsubscribe;
   }, []);
 
-  // Prevent flicker
   if (loading) return null;
 
   return (
     <NavigationContainer>
       {user ? (
-        // ✅ User logged in → Main App
+        // ✅ LOGGED IN STACK
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainApp" component={BottomNavigation} />
+
+          {/* 🔥 IMPORTANT: UserProfile MUST be here */}
+          <Stack.Screen
+            name="UserProfile"
+            component={UserProfileScreen}
+          />
         </Stack.Navigator>
       ) : (
-        // ❌ User logged out → Auth Screens
+        // ❌ LOGGED OUT STACK
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
