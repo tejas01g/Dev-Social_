@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import auth from "@react-native-firebase/auth";
-
+import firestore from "@react-native-firebase/firestore";
+import { useEffect } from "react";
 
 const { width } = Dimensions.get("window");
 
@@ -23,24 +24,24 @@ const thoughtCategories = ["💭 All Thoughts", "🌟 Motivation", "💡 Ideas",
 
 // Thoughts Data
 const dummyThoughts = [
-  { 
-    id: 1, 
+  {
+    id: 1,
     text: "Building Dev Social using React Native 🚀",
     category: "📱 Tech",
     time: "2h ago",
     likes: 42,
     comments: 8
   },
-  { 
-    id: 2, 
+  {
+    id: 2,
     text: "Exploring navigation & UI flow today.",
     category: "💡 Ideas",
     time: "4h ago",
     likes: 28,
     comments: 5
   },
-  { 
-    id: 3, 
+  {
+    id: 3,
     text: "Consistency > motivation.",
     category: "🌟 Motivation",
     time: "1d ago",
@@ -51,8 +52,8 @@ const dummyThoughts = [
 
 // Posts Data (with images)
 const dummyPosts = [
-  { 
-    id: 1, 
+  {
+    id: 1,
     text: "My current coding setup! Clean desk, clean code.",
     image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=600&fit=crop",
     time: "1d ago",
@@ -60,8 +61,8 @@ const dummyPosts = [
     comments: 24,
     shares: 12
   },
-  { 
-    id: 2, 
+  {
+    id: 2,
     text: "Beautiful sunset from my home office today 🌅",
     image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
     time: "2d ago",
@@ -69,8 +70,8 @@ const dummyPosts = [
     comments: 45,
     shares: 22
   },
-  { 
-    id: 3, 
+  {
+    id: 3,
     text: "Just launched our new design system components!",
     image: "https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=800&h=600&fit=crop",
     time: "3d ago",
@@ -85,16 +86,30 @@ const ProfileScreen = () => {
   const [selectedThoughtCategory, setSelectedThoughtCategory] = useState("💭 All Thoughts");
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("thoughts"); // 'thoughts' or 'posts'
+  const [userData, setUserData] = useState(null);
+  const user = auth().currentUser;
+
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = firestore()
+      .collection("users")
+      .doc(user.uid)
+      .onSnapshot(doc => {
+        if (doc.exists) {
+          setUserData(doc.data());
+        }
+      });
+
+    return unsubscribe;
+  }, []);
+
 
   const handleLogout = async () => {
-  try {
     await auth().signOut();
-    navigation.replace("Login");
-  } catch (error) {
-    console.log(error);
-    // alert("Something went wrong while logging out");
-  }
-};
+  };
+
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -104,8 +119,8 @@ const ProfileScreen = () => {
     }, 1500);
   };
 
-  const filteredThoughts = selectedThoughtCategory === "💭 All Thoughts" 
-    ? dummyThoughts 
+  const filteredThoughts = selectedThoughtCategory === "💭 All Thoughts"
+    ? dummyThoughts
     : dummyThoughts.filter(thought => thought.category === selectedThoughtCategory);
 
   const renderThoughtItem = ({ item }) => (
@@ -141,8 +156,8 @@ const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
       <Text style={styles.postText}>{item.text}</Text>
-      <Image 
-        source={{ uri: item.image }} 
+      <Image
+        source={{ uri: item.image }}
         style={styles.postImage}
         resizeMode="cover"
       />
@@ -165,7 +180,7 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -182,9 +197,9 @@ const ProfileScreen = () => {
         {/* Header with Profile Info */}
         <View style={styles.header}>
 
-           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-    <Text style={styles.logoutText}>Logout</Text>
-  </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
 
           <View style={styles.avatarContainer}>
             <Image
@@ -196,9 +211,9 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.name}>Tejasvi</Text>
-          <Text style={styles.username}>@tejasvi</Text>
-          
+          <Text style={styles.name}>{userData?.name || "Loading..."}</Text>
+          <Text style={styles.username}> @{userData?.username || "user"}</Text>
+
           <Text style={styles.bio}>
             React Native Developer | Learning by building 🚀
             Passionate about creating beautiful mobile experiences.
@@ -226,7 +241,7 @@ const ProfileScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.editBtn, isFollowing && styles.followingBtn]}
               onPress={() => setIsFollowing(!isFollowing)}
             >
@@ -234,11 +249,11 @@ const ProfileScreen = () => {
                 {isFollowing ? "Following ✓" : "Follow"}
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.messageBtn}>
               <Text style={styles.messageText}>Message</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.moreBtn}>
               <Text style={styles.moreIcon}>⋯</Text>
             </TouchableOpacity>
@@ -253,8 +268,8 @@ const ProfileScreen = () => {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipsScrollView}
           >
@@ -274,8 +289,8 @@ const ProfileScreen = () => {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipsScrollView}
           >
@@ -289,7 +304,7 @@ const ProfileScreen = () => {
 
         {/* Content Tabs */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === "thoughts" && styles.activeTab]}
             onPress={() => setActiveTab("thoughts")}
           >
@@ -298,8 +313,8 @@ const ProfileScreen = () => {
             </Text>
             {activeTab === "thoughts" && <View style={styles.activeTabIndicator} />}
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.tab, activeTab === "posts" && styles.activeTab]}
             onPress={() => setActiveTab("posts")}
           >
@@ -315,10 +330,10 @@ const ProfileScreen = () => {
           <View style={styles.contentSection}>
             <View style={styles.contentHeader}>
               <Text style={styles.sectionTitle}>My Thoughts</Text>
-              
+
               {/* Category Filter */}
-              <ScrollView 
-                horizontal 
+              <ScrollView
+                horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.categoryScrollView}
               >
@@ -760,22 +775,22 @@ const styles = StyleSheet.create({
   },
 
   logoutBtn: {
-  position: "absolute",
-  top: 10,
-  right: 16,
-  paddingVertical: 6,
-  paddingHorizontal: 12,
-  borderRadius: 6,
-  backgroundColor: "#1F2937",
-  borderWidth: 1,
-  borderColor: "#c81bd4ff",
-},
+    position: "absolute",
+    top: 10,
+    right: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#1F2937",
+    borderWidth: 1,
+    borderColor: "#c81bd4ff",
+  },
 
-logoutText: {
-  color: "#c81bd4ff",
-  fontSize: 13,
-  fontWeight: "600",
-},
+  logoutText: {
+    color: "#c81bd4ff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 
 });
 
