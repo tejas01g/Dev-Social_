@@ -97,6 +97,72 @@ const hobbies = userData?.hobbies || [];
 const [myPosts, setMyPosts] = useState([]);
 const [postsLoading, setPostsLoading] = useState(true);
 
+const handleFollow = async targetUserId => {
+  const currentUser = auth().currentUser;
+  if (!currentUser) return;
+
+  const myRef = firestore().collection("users").doc(currentUser.uid);
+  const targetRef = firestore().collection("users").doc(targetUserId);
+
+  const followingRef = myRef.collection("following").doc(targetUserId);
+  const followerRef = targetRef.collection("followers").doc(currentUser.uid);
+
+  const snap = await followingRef.get();
+
+  if (snap.exists) {
+    // UNFOLLOW
+    await followingRef.delete();
+    await followerRef.delete();
+
+    await myRef.update({
+      followingCount: firestore.FieldValue.increment(-1),
+    });
+    await targetRef.update({
+      followersCount: firestore.FieldValue.increment(-1),
+    });
+  } else {
+    // FOLLOW
+    await followingRef.set({
+      userId: targetUserId,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    await followerRef.set({
+      userId: currentUser.uid,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    await myRef.update({
+      followingCount: firestore.FieldValue.increment(1),
+    });
+    await targetRef.update({
+      followersCount: firestore.FieldValue.increment(1),
+    });
+  }
+};
+
+
+useEffect(() => {
+  if (!user) return;
+
+  const unsubscribeCounts = firestore()
+    .collection("users")
+    .doc(user.uid)
+    .onSnapshot(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        setUserData(prev => ({
+          ...prev,
+          followersCount: data.followersCount || 0,
+          followingCount: data.followingCount || 0,
+        }));
+      }
+    });
+
+  return unsubscribeCounts;
+}, [user?.uid]);
+
+
 
 useEffect(() => {
   if (!user) return;
@@ -284,8 +350,8 @@ const unsubscribePosts = firestore()
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{dummyThoughts.length + dummyPosts.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statNumber}>{myPosts.length + dummyPosts.length}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statNumber}>{dummyThoughts.length}</Text>
@@ -296,9 +362,15 @@ const unsubscribePosts = firestore()
               <Text style={styles.statLabel}>Posts</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>1.2K</Text>
+              <Text style={styles.statNumber}>{userData?.followersCount || 0}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </View>
+             <View style={styles.stat}>
+    <Text style={styles.statNumber}>
+      {userData?.followingCount || 0}
+    </Text>
+    <Text style={styles.statLabel}>Following</Text>
+  </View>
           </View>
 
           {/* Action Buttons */}
@@ -313,8 +385,6 @@ const unsubscribePosts = firestore()
 >
   <Text style={styles.editText}>Edit Profile</Text>
 </TouchableOpacity>
-
-
 
             <TouchableOpacity style={styles.messageBtn}>
               <Text style={styles.messageText}>Message</Text>

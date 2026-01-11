@@ -22,14 +22,105 @@ const UserProfileScreen = ({ route }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   const isMyProfile = currentUser?.uid === userId;
+
+  /* ================= FOLLOW STATUS ================= */
+  useEffect(() => {
+    if (!currentUser || isMyProfile) return;
+
+    const unsub = firestore()
+      .collection('users')
+      .doc(currentUser.uid)
+      .collection('following')
+      .doc(userId)
+      .onSnapshot(doc => {
+        setIsFollowing(doc.exists);
+      });
+
+    return unsub;
+  }, [userId]);
+
+  /* ================= FOLLOW USER ================= */
+  const followUser = async () => {
+    if (!currentUser) return;
+
+    const batch = firestore().batch();
+
+    const myFollowingRef = firestore()
+      .collection('users')
+      .doc(currentUser.uid)
+      .collection('following')
+      .doc(userId);
+
+    const targetFollowerRef = firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('followers')
+      .doc(currentUser.uid);
+
+    const myUserRef = firestore().collection('users').doc(currentUser.uid);
+    const targetUserRef = firestore().collection('users').doc(userId);
+
+    batch.set(myFollowingRef, {
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    batch.set(targetFollowerRef, {
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    batch.update(myUserRef, {
+      followingCount: firestore.FieldValue.increment(1),
+    });
+
+    batch.update(targetUserRef, {
+      followersCount: firestore.FieldValue.increment(1),
+    });
+
+    await batch.commit();
+  };
+
+  /* ================= UNFOLLOW USER ================= */
+  const unfollowUser = async () => {
+    if (!currentUser) return;
+
+    const batch = firestore().batch();
+
+    const myFollowingRef = firestore()
+      .collection('users')
+      .doc(currentUser.uid)
+      .collection('following')
+      .doc(userId);
+
+    const targetFollowerRef = firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('followers')
+      .doc(currentUser.uid);
+
+    const myUserRef = firestore().collection('users').doc(currentUser.uid);
+    const targetUserRef = firestore().collection('users').doc(userId);
+
+    batch.delete(myFollowingRef);
+    batch.delete(targetFollowerRef);
+
+    batch.update(myUserRef, {
+      followingCount: firestore.FieldValue.increment(-1),
+    });
+
+    batch.update(targetUserRef, {
+      followersCount: firestore.FieldValue.increment(-1),
+    });
+
+    await batch.commit();
+  };
 
   /* ================= FETCH USER + POSTS ================= */
   useEffect(() => {
     if (!userId) return;
 
-    // 🔥 USER DATA
     const unsubscribeUser = firestore()
       .collection('users')
       .doc(userId)
@@ -40,29 +131,21 @@ const UserProfileScreen = ({ route }) => {
         setLoading(false);
       });
 
-    // 🔥 USER POSTS (SAFE + GUARANTEED)
     const unsubscribePosts = firestore()
       .collection('posts')
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .onSnapshot(
         snapshot => {
-          if (!snapshot || snapshot.empty) {
-            setPosts([]);
-            setPostsLoading(false);
-            return;
-          }
-
-          const list = snapshot.docs.map(doc => ({
+          const list = snapshot?.docs?.map(doc => ({
             id: doc.id,
             ...doc.data(),
-          }));
+          })) || [];
 
           setPosts(list);
           setPostsLoading(false);
         },
-        error => {
-          console.log('Post fetch error:', error);
+        () => {
           setPosts([]);
           setPostsLoading(false);
         },
@@ -85,32 +168,32 @@ const UserProfileScreen = ({ route }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Avatar */}
         <Image
           source={{ uri: userData?.avatar || DEFAULT_AVATAR }}
           style={styles.avatar}
         />
 
-        {/* Name */}
         <Text style={styles.name}>{userData?.name || 'User'}</Text>
-
-        {/* Username */}
         <Text style={styles.username}>@{userData?.username || 'username'}</Text>
 
-        {/* Bio */}
         {userData?.bio ? <Text style={styles.bio}>{userData.bio}</Text> : null}
 
-        {/* Action Button */}
         {!isMyProfile && (
-          <TouchableOpacity style={styles.followBtn}>
-            <Text style={styles.followText}>Follow</Text>
+          <TouchableOpacity
+            style={[
+              styles.followBtn,
+              isFollowing && styles.followingBtn,
+            ]}
+            onPress={isFollowing ? unfollowUser : followUser}
+          >
+            <Text style={styles.followText}>
+              {isFollowing ? 'Following' : 'Follow'}
+            </Text>
           </TouchableOpacity>
         )}
 
-        {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Posts */}
         <Text style={styles.sectionTitle}>Posts ({posts.length})</Text>
 
         {postsLoading ? (
@@ -127,10 +210,7 @@ const UserProfileScreen = ({ route }) => {
                 <Text style={styles.postText}>{item.text}</Text>
 
                 {item.image && (
-                  <Image
-                    source={{ uri: item.image }}
-                    style={styles.postImage}
-                  />
+                  <Image source={{ uri: item.image }} style={styles.postImage} />
                 )}
 
                 <Text style={styles.postTime}>
@@ -203,6 +283,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     marginBottom: 16,
+  },
+
+  followingBtn: {
+    backgroundColor: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#c81bd4ff',
   },
 
   followText: {

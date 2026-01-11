@@ -54,13 +54,15 @@ const AddPostScreen = ({ navigation }) => {
       const userData = userDoc.data();
 
       // 🔥 Save post
-     await firestore().collection("posts").add({
+await firestore().collection("posts").add({
   userId: user.uid,
 
-  // ✅ MUST MATCH HOME FEED
-  userName: userData?.name || "Dev Social User",
-  userUsername: userData?.username || "devsocial",
-  userAvatar: userData?.avatar || DEFAULT_AVATAR,
+  // ✅ SAME KEYS AS HOME SCREEN
+  userName: userData?.name || "User",
+  userUsername: userData?.username || "user",
+  userAvatar:
+    userData?.avatar ||
+    "https://i.pravatar.cc/150?img=12",
 
   text: text.trim(),
   image: image || null,
@@ -71,6 +73,7 @@ const AddPostScreen = ({ navigation }) => {
 
   createdAt: firestore.FieldValue.serverTimestamp(),
 });
+
 
 
       Alert.alert("Posted 🎉", "Your post is live!");

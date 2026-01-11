@@ -16,6 +16,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import CommentModal from './components/CommentModal';
+
+const SAMPLE_POST_IMAGE =
+  'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=1200';
 
 const handleLike = async post => {
   const userId = auth().currentUser.uid;
@@ -36,6 +41,12 @@ const { width, height } = Dimensions.get('window');
 
 
 const HomeScreen = ({ navigation }) => {
+
+  const SAMPLE_POST_IMAGE =
+  'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=1200';
+
+  const tabBarHeight = useBottomTabBarHeight();
+
   const DEFAULT_AVATAR =
   'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -45,6 +56,40 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [commentPostId, setCommentPostId] = useState(null);
+
+  const addComment = async (postId, commentText) => {
+  const user = auth().currentUser;
+  if (!user || !commentText.trim()) return;
+
+  // 🔥 Get user data once
+  const userDoc = await firestore()
+    .collection('users')
+    .doc(user.uid)
+    .get();
+
+  const userData = userDoc.data();
+
+  const postRef = firestore().collection('posts').doc(postId);
+
+  // 🔥 Add comment
+  await postRef.collection('comments').add({
+    userId: user.uid,
+    userName: userData?.name || 'User',
+    userUsername: userData?.username || 'username',
+    userAvatar:
+      userData?.avatar ||
+      'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+    text: commentText.trim(),
+    createdAt: firestore.FieldValue.serverTimestamp(),
+  });
+
+  // 🔥 Increment comment count
+  await postRef.update({
+    comments: firestore.FieldValue.increment(1),
+  });
+};
+
 
   /* ================= REAL-TIME GLOBAL POSTS ================= */
   useEffect(() => {
@@ -74,81 +119,59 @@ const HomeScreen = ({ navigation }) => {
   };
 
   /* ================= POST ITEM ================= */
-  const renderPostItem = ({ item }) => (
+const renderPostItem = ({ item }) => {
+  const postImage = item.image || SAMPLE_POST_IMAGE;
+
+  return (
     <View style={styles.postCard}>
       {/* Header */}
-<View style={styles.postHeader}>
-  <Image
-    source={{
-      uri:
-        item.userAvatar ||
-        'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-    }}
-    style={styles.avatarImage}
-  />
+      <View style={styles.postHeader}>
+        <Image
+          source={{ uri: item.userAvatar || DEFAULT_AVATAR }}
+          style={styles.avatarImage}
+        />
 
-  <View style={styles.userInfo}>
-    <Text style={styles.userName}>
-      {item.name || 'Dev Social User'}
-    </Text>
-
-    <Text style={styles.username}>
-      @{item.username || 'devsocial'}
-    </Text>
-
-    <Text style={styles.time}>
-      {item.createdAt?.toDate
-        ? new Date(item.createdAt.toDate()).toLocaleString()
-        : 'Just now'}
-    </Text>
-  </View>
-
-  <TouchableOpacity>
-    <Text style={styles.moreIcon}>⋯</Text>
-  </TouchableOpacity>
-</View>
-
-
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.name || 'Dev Social User'}
+          </Text>
+          <Text style={styles.username}>
+            @{item.username || 'devsocial'}
+          </Text>
+        </View>
+      </View>
 
       {/* Text */}
       <Text style={styles.postContent}>{item.text}</Text>
 
-      {/* Image (optional) */}
-      {item.image && (
+      {/* Image */}
+      <TouchableOpacity
+        style={styles.postImageContainer}
+        onPress={() => openFullScreenImage(postImage)}
+      >
+        <Image source={{ uri: postImage }} style={styles.postImage} />
+      </TouchableOpacity>
+
+      {/* Actions */}
+      <View style={styles.postActions}>
         <TouchableOpacity
-          style={styles.postImageContainer}
-          onPress={() => openFullScreenImage(item.image)}
+          style={styles.actionButton}
+          onPress={() => handleLike(item)}
         >
-          <Image source={{ uri: item.image }} style={styles.postImage} />
+          <Text>❤️ {item.likes || 0}</Text>
         </TouchableOpacity>
-      )}
 
-      {/* Stats */}
-    <View style={styles.postActions}>
-  {/* LIKE */}
-  <TouchableOpacity
-    style={styles.actionButton}
-    onPress={() => handleLike(item)}
-  >
-    <Text style={styles.actionIcon}>❤️</Text>
-    <Text style={styles.actionText}>{item.likes || 0}</Text>
-  </TouchableOpacity>
-
-  {/* COMMENT */}
-  <TouchableOpacity style={styles.actionButton}>
-    <Text style={styles.actionIcon}>💬</Text>
-    <Text style={styles.actionText}>{item.comments || 0}</Text>
-  </TouchableOpacity>
-
-  {/* SHARE */}
-  <TouchableOpacity style={styles.actionButton}>
-    <Text style={styles.actionIcon}>🔗</Text>
-    <Text style={styles.actionText}>{item.shares || 0}</Text>
-  </TouchableOpacity>
-</View>
-
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => setCommentPostId(item.id)}
+        >
+          <Text>💬 {item.comments || 0}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -162,31 +185,32 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={posts}
-        keyExtractor={item => item.id}
-        renderItem={renderPostItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListHeaderComponent={
-          <TouchableOpacity
-            style={styles.createPostButton}
-            onPress={() => navigation.navigate('Add')}
-          >
-            <Text style={styles.createPostText}>What's on your mind?</Text>
-          </TouchableOpacity>
-        }
-        ListEmptyComponent={
-          loading ? (
-            <Text style={styles.emptyText}>Loading feed...</Text>
-          ) : (
-            <Text style={styles.emptyText}>No posts yet 🚀</Text>
-          )
-        }
-      />
-      
-
+    <FlatList
+  data={posts}
+  keyExtractor={item => item.id}
+  renderItem={renderPostItem}
+  refreshControl={
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+  }
+  contentContainerStyle={{
+    paddingBottom: tabBarHeight + 20, // 🔥 FIX
+  }}
+  ListHeaderComponent={
+    <TouchableOpacity
+      style={styles.createPostButton}
+      onPress={() => navigation.navigate('Add')}
+    >
+      <Text style={styles.createPostText}>What's on your mind?</Text>
+    </TouchableOpacity>
+  }
+  ListEmptyComponent={
+    loading ? (
+      <Text style={styles.emptyText}>Loading feed...</Text>
+    ) : (
+      <Text style={styles.emptyText}>No posts yet 🚀</Text>
+    )
+  }
+/>
       {/* Full Image Modal */}
       <Modal visible={modalVisible} transparent>
         <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
@@ -199,7 +223,17 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {commentPostId && (
+  <CommentModal
+    visible={true}
+    postId={commentPostId}
+    onClose={() => setCommentPostId(null)}
+  />
+)}
+
     </SafeAreaView>
+
   );
 };
 
@@ -357,7 +391,7 @@ actionText: {
   },
   // Post Card Styles
   postCard: {
-    borderWidth:1,
+    borderWidth:0.1,
     borderColor:'#c81bd4ff',
     backgroundColor: '#262525ff',
     marginHorizontal: 16,
